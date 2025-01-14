@@ -1,10 +1,8 @@
 import asyncio
-import os
 from pdf2csv import PDFProcessor
-from translate import TranslatorProcessor
+from translate import TranslatorProcessor, GoogleTranslateScraper
 
-def main():
-    pdf_path = os.environ["PDF_PATH"]
+def main(pdf_path, trans_lang="ja"):
 
     # PDF処理
     pdf_processor = PDFProcessor(pdf_path)
@@ -13,15 +11,19 @@ def main():
     top_words = pdf_processor.get_most_common_words(cleaned_text)
 
     # CSVに保存
-    pdf_processor.save_to_csv(top_words, 2)
+    pdf_processor.save_to_csv(top_words, ignore_len=2)
     
     # CSVから単語を抽出
     words = pdf_processor.extract_keys_from_csv('out/word_frequencies.csv')
 
+    # Google TranslateのURLをセット（例）
+    url = "https://translate.google.com/details?sl=ja&tl=en&text=%E4%BE%A1%E5%80%A4&op=translate"
+    translate_scraper = GoogleTranslateScraper(url)
+    scraped_data = translate_scraper.scrape()
+
     # 翻訳処理
-    trans_lang = "ja"
     translator_processor = TranslatorProcessor(words, src_lang="en", dest_lang=trans_lang)
-    
+
     # 言語解析
     language_counts, language_average_confidence = asyncio.run(translator_processor.analyze_language_data(words))
     print("Language counts:")
@@ -38,10 +40,10 @@ def main():
     print(f"\nMost common language: {most_common_language}")
 
     # 翻訳
-    trans_list = asyncio.run(translator_processor.translate_bulk())
+    trans_list = asyncio.run(translator_processor.translate_bulk(scraped_data))
     
     # 翻訳結果をCSVに保存
-    translator_processor.save_to_csv(trans_list, original_lang="en", trans_lang=trans_lang)
+    translator_processor.save_to_csv(trans_list, original_lang=most_common_language, trans_lang=trans_lang)
 
 if __name__ == '__main__':
-    main()
+    main("/path/to/your/pdf")
